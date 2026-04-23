@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Save, Plus, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Save, Plus, AlertCircle, ChevronDown, ChevronUp, Plug, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import { normalizeTomlText } from "@/utils/textNormalization";
 import { parseSmartMcpJson } from "@/utils/formatters";
 import { useMcpValidation } from "./useMcpValidation";
 import { useUpsertMcpServer } from "@/hooks/useMcp";
+import { mcpApi } from "@/lib/api/mcp";
 import { FullScreenPanel } from "@/components/common/FullScreenPanel";
 
 interface McpFormModalProps {
@@ -113,6 +114,8 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
 
   const [configError, setConfigError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean } | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [idError, setIdError] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -279,6 +282,47 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
     } else {
       setFormConfig(json);
       setConfigError(validateJsonConfig(json));
+    }
+  };
+
+  const parseCurrentSpec = (): McpServerSpec | null => {
+    if (!formConfig.trim()) return null;
+    try {
+      if (useToml) {
+        return tomlToMcpServer(formConfig);
+      }
+      const result = parseSmartMcpJson(formConfig);
+      return result.config as McpServerSpec;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleTest = async () => {
+    const spec = parseCurrentSpec();
+    if (!spec) {
+      toast.error(t("mcp.error.configRequired") || t("mcp.error.jsonInvalid"));
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await mcpApi.testConnectivity(spec);
+      setTestResult({ ok: result.ok });
+      if (result.ok) {
+        const detail =
+          result.server_name
+            ? `${result.server_name}${result.server_version ? ` v${result.server_version}` : ""}`
+            : result.message;
+        toast.success(t("mcp.connectivity.success", { message: detail }));
+      } else {
+        toast.error(t("mcp.connectivity.failed", { message: result.message }));
+      }
+    } catch (err) {
+      setTestResult({ ok: false });
+      toast.error(t("mcp.connectivity.failed", { message: String(err) }));
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -676,15 +720,40 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
               <label className="text-sm font-medium text-foreground">
                 {useToml ? t("mcp.form.tomlConfig") : t("mcp.form.jsonConfig")}
               </label>
-              {(isEditing || selectedPreset === -1) && (
-                <button
+              <div className="flex items-center gap-2">
+                <Button
                   type="button"
-                  onClick={() => setIsWizardOpen(true)}
-                  className="text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTest}
+                  disabled={testing || !formConfig.trim()}
+                  className={
+                    testResult !== null
+                      ? testResult.ok
+                        ? "border-green-500 text-green-600 dark:text-green-400"
+                        : "border-red-500 text-red-600 dark:text-red-400"
+                      : ""
+                  }
                 >
-                  {t("mcp.form.useWizard")}
-                </button>
-              )}
+                  {testing ? (
+                    <Loader2 size={13} className="mr-1 animate-spin" />
+                  ) : (
+                    <Plug size={13} className="mr-1" />
+                  )}
+                  {testing
+                    ? t("mcp.connectivity.testing")
+                    : t("mcp.connectivity.test")}
+                </Button>
+                {(isEditing || selectedPreset === -1) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsWizardOpen(true)}
+                    className="text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
+                  >
+                    {t("mcp.form.useWizard")}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
               <div className="flex-1 min-h-0">

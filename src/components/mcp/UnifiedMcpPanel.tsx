@@ -535,6 +535,13 @@ interface UnifiedMcpListItemProps {
   isLast?: boolean;
 }
 
+interface TestResult {
+  ok: boolean;
+  message: string;
+  serverName?: string;
+  serverVersion?: string;
+}
+
 const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
   id,
   server,
@@ -548,20 +555,33 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
 }) => {
   const { t } = useTranslation();
   const testMutation = useTestMcpConnectivity();
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+
   const handleTest = async () => {
     try {
       const result = await testMutation.mutateAsync(server.server);
+      setTestResult({
+        ok: result.ok,
+        message: result.message,
+        serverName: result.server_name,
+        serverVersion: result.server_version,
+      });
       if (result.ok) {
-        toast.success(
-          t("mcp.connectivity.success", { message: result.message }),
-        );
+        const detail =
+          result.server_name
+            ? `${result.server_name}${result.server_version ? ` v${result.server_version}` : ""}`
+            : result.message;
+        toast.success(t("mcp.connectivity.success", { message: detail }));
       } else {
         toast.error(t("mcp.connectivity.failed", { message: result.message }));
       }
     } catch (err) {
-      toast.error(t("mcp.connectivity.failed", { message: String(err) }));
+      const msg = String(err);
+      setTestResult({ ok: false, message: msg });
+      toast.error(t("mcp.connectivity.failed", { message: msg }));
     }
   };
+
   const name = server.name || id;
   const description = server.description || "";
 
@@ -580,6 +600,14 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
     }
   };
 
+  const statusDotTitle = testResult
+    ? testResult.ok
+      ? testResult.serverName
+        ? `${testResult.serverName}${testResult.serverVersion ? ` v${testResult.serverVersion}` : ""}`
+        : testResult.message
+      : testResult.message
+    : undefined;
+
   return (
     <ListItemRow isLast={isLast}>
       {selectionMode && (
@@ -595,6 +623,14 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
           <span className="font-medium text-sm text-foreground truncate">
             {name}
           </span>
+          {testResult !== null && (
+            <span
+              className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
+                testResult.ok ? "bg-green-500" : "bg-red-500"
+              }`}
+              title={statusDotTitle}
+            />
+          )}
           {docsUrl && (
             <button
               type="button"
@@ -627,7 +663,7 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
         appIds={MCP_APP_IDS}
       />
 
-      <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-0.5 flex-shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
         <Button
           type="button"
           variant="ghost"

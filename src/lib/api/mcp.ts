@@ -130,6 +130,8 @@ export const mcpApi = {
   async testConnectivity(server: McpServerSpec): Promise<{
     ok: boolean;
     message: string;
+    server_name?: string;
+    server_version?: string;
   }> {
     return invoke("test_mcp_connectivity", { server });
   },

@@ -214,6 +214,8 @@ pub async fn import_mcp_from_apps(state: State<'_, AppState>) -> Result<usize, S
 pub struct McpConnectivityResult {
     pub ok: bool,
     pub message: String,
+    pub server_name: Option<String>,
+    pub server_version: Option<String>,
 }
 
 /// 测试 MCP 服务器连通性
@@ -232,6 +234,8 @@ pub async fn test_mcp_connectivity(
         _ => Ok(McpConnectivityResult {
             ok: false,
             message: format!("Unknown server type: {}", server_type),
+            server_name: None,
+            server_version: None,
         }),
     }
 }
@@ -247,6 +251,8 @@ async fn test_stdio_mcp_connectivity(
         return Ok(McpConnectivityResult {
             ok: false,
             message: "No command specified".to_string(),
+            server_name: None,
+            server_version: None,
         });
     }
 
@@ -256,6 +262,8 @@ async fn test_stdio_mcp_connectivity(
             return Ok(McpConnectivityResult {
                 ok: false,
                 message: format!("Command not found in app environment: {}", command),
+                server_name: None,
+                server_version: None,
             });
         }
     };
@@ -265,13 +273,18 @@ async fn test_stdio_mcp_connectivity(
     let cwd = parse_cwd(server.get("cwd"));
 
     match run_stdio_initialize_probe(&command_path, &args, &envs, cwd.as_deref()).await {
-        Ok(server_info) => Ok(McpConnectivityResult {
-            ok: true,
-            message: format!(
+        Ok(server_info) => {
+            let message = format!(
                 "MCP server responded to initialize: {} ({})",
                 server_info.name, server_info.version
-            ),
-        }),
+            );
+            Ok(McpConnectivityResult {
+                ok: true,
+                message,
+                server_name: Some(server_info.name),
+                server_version: Some(server_info.version),
+            })
+        }
         Err(err) => Ok(McpConnectivityResult {
             ok: false,
             message: format!(
@@ -280,6 +293,8 @@ async fn test_stdio_mcp_connectivity(
                 command_path.display(),
                 format_command_args(&args)
             ),
+            server_name: None,
+            server_version: None,
         }),
     }
 }
@@ -293,6 +308,8 @@ async fn test_remote_mcp_connectivity(
         return Ok(McpConnectivityResult {
             ok: false,
             message: "No URL specified".to_string(),
+            server_name: None,
+            server_version: None,
         });
     }
 
@@ -318,17 +335,19 @@ async fn test_remote_mcp_connectivity(
                         .as_deref()
                         .map(|id| format!(", session {}", id))
                         .unwrap_or_default();
-
-                    Ok(McpConnectivityResult {
-                        ok: true,
-                        message: format!(
+                    let message = format!(
                         "Remote MCP initialize + initialized succeeded via {}: {} ({}) [HTTP {}{}]",
                         transport,
                         init.server_info.name,
                         init.server_info.version,
                         initialized_status.as_u16(),
                         session_hint
-                    ),
+                    );
+                    Ok(McpConnectivityResult {
+                        ok: true,
+                        message,
+                        server_name: Some(init.server_info.name),
+                        server_version: Some(init.server_info.version),
                     })
                 }
                 Err(err) => Ok(McpConnectivityResult {
@@ -337,6 +356,8 @@ async fn test_remote_mcp_connectivity(
                         "Remote MCP initialize succeeded but initialized failed: {}",
                         err.message
                     ),
+                    server_name: None,
+                    server_version: None,
                 }),
             }
         }
@@ -350,7 +371,12 @@ async fn test_remote_mcp_connectivity(
                 ) =>
         {
             match probe_legacy_sse(&client, url, &extra_headers).await {
-                Ok(message) => Ok(McpConnectivityResult { ok: true, message }),
+                Ok(message) => Ok(McpConnectivityResult {
+                    ok: true,
+                    message,
+                    server_name: None,
+                    server_version: None,
+                }),
                 Err(sse_err) => Ok(McpConnectivityResult {
                     ok: false,
                     message: format!(
@@ -358,12 +384,16 @@ async fn test_remote_mcp_connectivity(
                         http_err.message,
                         format_fallback_error(sse_err)
                     ),
+                    server_name: None,
+                    server_version: None,
                 }),
             }
         }
         Err(http_err) => Ok(McpConnectivityResult {
             ok: false,
             message: format!("Remote MCP probe failed: {}", http_err.message),
+            server_name: None,
+            server_version: None,
         }),
     }
 }
@@ -744,8 +774,11 @@ fn read_initialize_response<R: BufRead>(
             continue;
         }
 
-        let response: serde_json::Value = serde_json::from_str(trimmed)
-            .map_err(|e| format!("stdout is not valid JSON-RPC: {}", e))?;
+        // 跳过非 JSON 行（部分 server 会向 stdout 打印启动日志）
+        let response: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
 
         if response.get("jsonrpc").and_then(|v| v.as_str()) != Some("2.0") {
             return Err("initialize response missing jsonrpc=2.0".to_string());
