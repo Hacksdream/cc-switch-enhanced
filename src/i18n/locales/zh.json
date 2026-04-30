@@ -555,7 +555,8 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty",
           "wezterm": "WezTerm",
-          "kaku": "Kaku"
+          "kaku": "Kaku",
+          "warp": "Warp"
         },
         "windows": {
           "cmd": "命令提示符",
@@ -812,6 +813,7 @@
     },
     "presets": {
       "ucloud": "优云智算",
+      "ucloudCoding": "优云智算Coding Plan",
       "shengsuanyun": "胜算云",
       "openrouter": "OpenRouter",
       "deepseek": "DeepSeek",
@@ -833,6 +835,11 @@
     "fillTemplateValue": "请填写 {{label}}",
     "endpointRequired": "非官方供应商请填写 API 端点",
     "apiKeyRequired": "非官方供应商请填写 API Key",
+    "softValidation": {
+      "title": "配置存在以下问题",
+      "hint": "仍要保存吗？保存后切换此供应商时可能失败，可以之后再补全。",
+      "saveAnyway": "仍要保存"
+    },
     "configJsonError": "配置JSON格式错误，请检查语法",
     "authJsonRequired": "auth.json 必须是 JSON 对象",
     "authJsonError": "auth.json 格式错误，请检查JSON语法",
@@ -884,6 +891,7 @@
     "fetchModelsNeedConfig": "请先填写 API 端点和 API Key",
     "fetchModelsAuthFailed": "API Key 无效或无权限",
     "fetchModelsNotSupported": "该供应商不支持获取模型列表",
+    "fetchModelsEndpointNotFound": "未找到可用的模型列表端点，请检查 Base URL 或确认供应商是否开放该接口",
     "fetchModelsTimeout": "请求超时，请检查网络连接"
   },
   "copilot": {
@@ -1124,7 +1132,8 @@
       "all": "全部",
       "claude": "Claude Code",
       "codex": "Codex",
-      "gemini": "Gemini"
+      "gemini": "Gemini",
+      "hermes": "Hermes"
     },
     "dataSources": "数据来源",
     "dataSource": {
@@ -1132,7 +1141,8 @@
       "session_log": "会话日志",
       "codex_db": "Codex 数据库",
       "codex_session": "Codex 会话日志",
-      "gemini_session": "Gemini 会话日志"
+      "gemini_session": "Gemini 会话日志",
+      "hermes_session": "Hermes 会话日志"
     },
     "sessionSync": {
       "trigger": "同步会话日志",
@@ -1749,25 +1759,11 @@
       "open": "打开 Hermes Web UI",
       "offline": "Hermes Web UI 未启动，请先运行 `hermes dashboard` 启动服务。",
       "openFailed": "打开 Hermes Web UI 失败",
-      "fixInWebUI": "在 Hermes Web UI 修复",
       "launchConfirmTitle": "Hermes Dashboard 未启动",
       "launchConfirmMessage": "是否打开终端并运行 `hermes dashboard` 启动服务？\n\n启动完成后会自动打开浏览器。\n\n若终端提示找不到 hermes 或缺少 web 依赖，请先运行：\npip install hermes-agent[web]",
       "launchConfirmAction": "打开终端并启动",
       "launching": "已在终端启动 hermes dashboard",
       "launchFailed": "打开终端失败"
-    },
-    "health": {
-      "title": "检测到 Hermes 配置警告",
-      "parseFailed": "config.yaml 无法解析为有效 YAML。请先修复文件再在此编辑。",
-      "configNotFound": "未找到 Hermes config.yaml。请在 ~/.hermes/config.yaml 创建或在设置中配置路径。",
-      "envParseFailed": ".env 文件无法解析。",
-      "modelNoDefault": "model 段未设置默认模型或供应商。",
-      "customProvidersNotList": "custom_providers 应为 YAML 列表（以 `-` 开头），而不是映射。",
-      "modelProviderUnknown": "model.provider 指向的供应商未在配置中找到。",
-      "modelDefaultNotInProvider": "model.default 指向的模型不在所选供应商的模型列表中。",
-      "duplicateProviderName": "custom_providers 中存在重复的供应商名，只会有一条生效。",
-      "duplicateProviderBaseUrl": "custom_providers 中存在重复的 base_url，可能是意外复制。",
-      "schemaMigratedV12": "Hermes 新版 schema 把部分供应商移到了 'providers:' dict。CC Switch 中以只读方式显示，编辑或删除请通过 Hermes Web UI 操作。"
     },
     "memory": {
       "title": "记忆管理",

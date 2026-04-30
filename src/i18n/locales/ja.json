@@ -555,7 +555,8 @@
           "kitty": "Kitty",
           "ghostty": "Ghostty",
           "wezterm": "WezTerm",
-          "kaku": "Kaku"
+          "kaku": "Kaku",
+          "warp": "Warp"
         },
         "windows": {
           "cmd": "コマンドプロンプト",
@@ -812,6 +813,7 @@
     },
     "presets": {
       "ucloud": "Compshare",
+      "ucloudCoding": "Compshare Coding Plan",
       "shengsuanyun": "Shengsuanyun",
       "openrouter": "OpenRouter",
       "deepseek": "DeepSeek",
@@ -833,6 +835,11 @@
     "fillTemplateValue": "{{label}} を入力してください",
     "endpointRequired": "公式以外は API エンドポイントが必須です",
     "apiKeyRequired": "公式以外は API Key が必須です",
+    "softValidation": {
+      "title": "設定に以下の問題があります",
+      "hint": "それでも保存しますか？保存後、このプロバイダーへの切り替えが失敗する可能性がありますが、後から補完できます。",
+      "saveAnyway": "それでも保存"
+    },
     "configJsonError": "Config JSON の形式が正しくありません。構文を確認してください",
     "authJsonRequired": "auth.json は JSON オブジェクトで入力してください",
     "authJsonError": "auth.json の形式が正しくありません。JSON を確認してください",
@@ -884,6 +891,7 @@
     "fetchModelsNeedConfig": "先に API エンドポイントと API Key を入力してください",
     "fetchModelsAuthFailed": "API Key が無効か、権限がありません",
     "fetchModelsNotSupported": "このプロバイダーはモデル一覧の取得に対応していません",
+    "fetchModelsEndpointNotFound": "利用可能なモデル一覧エンドポイントが見つかりません。Base URL を確認するか、プロバイダーが該当 API を公開しているかご確認ください",
     "fetchModelsTimeout": "リクエストがタイムアウトしました。ネットワーク接続を確認してください"
   },
   "copilot": {
@@ -1124,7 +1132,8 @@
       "all": "すべて",
       "claude": "Claude Code",
       "codex": "Codex",
-      "gemini": "Gemini"
+      "gemini": "Gemini",
+      "hermes": "Hermes"
     },
     "dataSources": "データソース",
     "dataSource": {
@@ -1132,7 +1141,8 @@
       "session_log": "セッションログ",
       "codex_db": "Codex DB",
       "codex_session": "Codex セッション",
-      "gemini_session": "Gemini セッション"
+      "gemini_session": "Gemini セッション",
+      "hermes_session": "Hermes セッション"
     },
     "sessionSync": {
       "trigger": "セッションログを同期",
@@ -1749,25 +1759,11 @@
       "open": "Hermes Web UI を開く",
       "offline": "Hermes Web UI が起動していません。まず `hermes dashboard` を実行してください。",
       "openFailed": "Hermes Web UI を開けませんでした",
-      "fixInWebUI": "Hermes Web UI で修正",
       "launchConfirmTitle": "Hermes Dashboard が起動していません",
       "launchConfirmMessage": "ターミナルを開いて `hermes dashboard` を実行しますか？\n\n起動完了後、ブラウザが自動的に開きます。\n\nターミナルに `hermes` が見つからない、または web 依存が不足するというエラーが表示される場合は、まず次を実行してください：\npip install hermes-agent[web]",
       "launchConfirmAction": "ターミナルを開いて起動",
       "launching": "ターミナルで hermes dashboard を起動しました。",
       "launchFailed": "ターミナルを開けませんでした"
-    },
-    "health": {
-      "title": "Hermes 設定の警告を検出",
-      "parseFailed": "config.yaml を有効な YAML として解析できません。ここで編集する前にファイルを修正してください。",
-      "configNotFound": "Hermes config.yaml が見つかりません。~/.hermes/config.yaml に作成するか、設定でパスを構成してください。",
-      "envParseFailed": ".env ファイルを解析できません。",
-      "modelNoDefault": "'model' セクションに既定モデルまたはプロバイダーが設定されていません。",
-      "customProvidersNotList": "custom_providers はマッピングではなく、YAML リスト（'-' で始まる項目）である必要があります。",
-      "modelProviderUnknown": "model.provider が指すプロバイダーは設定に存在しません。",
-      "modelDefaultNotInProvider": "model.default は選択中のプロバイダーのモデル一覧に含まれていません。",
-      "duplicateProviderName": "custom_providers にプロバイダー名の重複があります。1 件のみ有効になります。",
-      "duplicateProviderBaseUrl": "custom_providers に重複した base_url があります。誤ってコピーされた可能性があります。",
-      "schemaMigratedV12": "Hermes の新しいスキーマでは一部のプロバイダーが 'providers:' dict に移動しました。CC Switch では読み取り専用で表示されます。編集・削除は Hermes Web UI から行ってください。"
     },
     "memory": {
       "title": "メモリ",

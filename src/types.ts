@@ -74,6 +74,20 @@ export interface UsageScript {
   };
 }
 
+const DEFAULT_USAGE_SCRIPT: UsageScript = {
+  enabled: false,
+  language: "javascript",
+  code: "",
+  timeout: 10,
+  autoQueryInterval: 5,
+};
+
+export function createUsageScript(
+  overrides?: Partial<UsageScript>,
+): UsageScript {
+  return { ...DEFAULT_USAGE_SCRIPT, ...overrides };
+}
+
 // 单个套餐用量数据
 export interface UsageData {
   planName?: string; // 套餐名称（可选）
@@ -589,17 +603,6 @@ export interface HermesModelConfig {
   context_length?: number;
   max_tokens?: number;
   [key: string]: unknown;
-}
-
-export interface HermesHealthWarning {
-  code: string;
-  message: string;
-  path?: string;
-}
-
-export interface HermesWriteOutcome {
-  backupPath?: string;
-  warnings: HermesHealthWarning[];
 }
 
 export type HermesMemoryKind = "memory" | "user";
