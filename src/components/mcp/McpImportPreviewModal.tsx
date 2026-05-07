@@ -79,6 +79,7 @@ export function McpImportPreviewModal({
           gemini: false,
           opencode: false,
           openclaw: false,
+          hermes: false,
         },
         tags: [],
       }));

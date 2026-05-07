@@ -61,68 +61,6 @@ pub fn get_opencode_env_path() -> PathBuf {
     get_opencode_dir().join(".env")
 }
 
-fn strip_jsonc_comments(input: &str) -> String {
-    let mut result = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
-    let mut in_string = false;
-    let mut escape_next = false;
-
-    while let Some(c) = chars.next() {
-        if escape_next {
-            result.push(c);
-            escape_next = false;
-            continue;
-        }
-
-        if in_string {
-            result.push(c);
-            if c == '\\' {
-                escape_next = true;
-            } else if c == '"' {
-                in_string = false;
-            }
-            continue;
-        }
-
-        match c {
-            '"' => {
-                in_string = true;
-                result.push(c);
-            }
-            '/' => {
-                if let Some(&next) = chars.peek() {
-                    if next == '/' {
-                        chars.next();
-                        while let Some(&ch) = chars.peek() {
-                            if ch == '\n' {
-                                break;
-                            }
-                            chars.next();
-                        }
-                    } else if next == '*' {
-                        chars.next();
-                        while let Some(ch) = chars.next() {
-                            if ch == '*' {
-                                if let Some(&'/') = chars.peek() {
-                                    chars.next();
-                                    break;
-                                }
-                            }
-                        }
-                    } else {
-                        result.push(c);
-                    }
-                } else {
-                    result.push(c);
-                }
-            }
-            _ => result.push(c),
-        }
-    }
-
-    result
-}
-
 // ---------------------------------------------------------------------------
 // Raw file I/O (preserves original content for CST round-trip editing)
 // ---------------------------------------------------------------------------
