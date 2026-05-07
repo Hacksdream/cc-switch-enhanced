@@ -242,7 +242,9 @@ const PromptPanel = React.forwardRef<PromptPanelHandle, PromptPanelProps>(
             )}
             {isBatchDeleting
               ? t("prompts.bulkDelete.deleting")
-              : t("prompts.bulkDelete.button", { count: selectedPrompts.length })}
+              : t("prompts.bulkDelete.button", {
+                  count: selectedPrompts.length,
+                })}
           </Button>
         </div>
 

@@ -567,10 +567,9 @@ const UnifiedMcpListItem: React.FC<UnifiedMcpListItemProps> = ({
         serverVersion: result.server_version,
       });
       if (result.ok) {
-        const detail =
-          result.server_name
-            ? `${result.server_name}${result.server_version ? ` v${result.server_version}` : ""}`
-            : result.message;
+        const detail = result.server_name
+          ? `${result.server_name}${result.server_version ? ` v${result.server_version}` : ""}`
+          : result.message;
         toast.success(t("mcp.connectivity.success", { message: detail }));
       } else {
         toast.error(t("mcp.connectivity.failed", { message: result.message }));

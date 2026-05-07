@@ -1,7 +1,15 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Save, Plus, AlertCircle, ChevronDown, ChevronUp, Plug, Loader2 } from "lucide-react";
+import {
+  Save,
+  Plus,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Plug,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -310,10 +318,9 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
       const result = await mcpApi.testConnectivity(spec);
       setTestResult({ ok: result.ok });
       if (result.ok) {
-        const detail =
-          result.server_name
-            ? `${result.server_name}${result.server_version ? ` v${result.server_version}` : ""}`
-            : result.message;
+        const detail = result.server_name
+          ? `${result.server_name}${result.server_version ? ` v${result.server_version}` : ""}`
+          : result.message;
         toast.success(t("mcp.connectivity.success", { message: detail }));
       } else {
         toast.error(t("mcp.connectivity.failed", { message: result.message }));

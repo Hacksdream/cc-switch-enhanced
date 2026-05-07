@@ -273,10 +273,13 @@ const UnifiedSkillsPanel = React.forwardRef<
           }
           setSelectedSkillIds(new Set());
           if (successCount > 0) {
-            toast.success(t("skills.bulkDelete.success", { count: successCount }), {
-              id: loadingToast,
-              closeButton: true,
-            });
+            toast.success(
+              t("skills.bulkDelete.success", { count: successCount }),
+              {
+                id: loadingToast,
+                closeButton: true,
+              },
+            );
           } else {
             toast.error(t("skills.bulkDelete.failed"), {
               id: loadingToast,
@@ -284,11 +287,14 @@ const UnifiedSkillsPanel = React.forwardRef<
             });
           }
           if (firstError && successCount > 0) {
-            toast.error(t("skills.bulkDelete.partialFailed", {
-              failed: selectedSkills.length - successCount,
-            }), {
-              description: firstError,
-            });
+            toast.error(
+              t("skills.bulkDelete.partialFailed", {
+                failed: selectedSkills.length - successCount,
+              }),
+              {
+                description: firstError,
+              },
+            );
           }
         } finally {
           setIsBatchDeleting(false);
@@ -672,7 +678,9 @@ const UnifiedSkillsPanel = React.forwardRef<
                   onUpdate={() => handleUpdateSkill(skill)}
                   selectionMode
                   isChecked={selectedSkillIds.has(skill.id)}
-                  onToggleChecked={(checked) => handleToggleSelect(skill.id, checked)}
+                  onToggleChecked={(checked) =>
+                    handleToggleSelect(skill.id, checked)
+                  }
                   isLast={index === filteredSkills.length - 1}
                 />
               ))}
