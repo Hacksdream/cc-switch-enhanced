@@ -137,6 +137,43 @@ export interface ClaudeDesktopModelRoute {
   supports1m?: boolean;
 }
 
+export type CodexChatThinkingParam =
+  | "none"
+  | "thinking"
+  | "reasoning"
+  | "include_reasoning"
+  | "enable_thinking"
+  | "reasoning_split";
+
+export type CodexChatEffortParam =
+  | "none"
+  | "reasoning_effort"
+  | "reasoning.effort"
+  | "reasoning_effort_level";
+
+export type CodexChatEffortValueMode =
+  | "passthrough"
+  | "map_low_medium_high"
+  | "low_high"
+  | "deepseek"
+  | "openrouter";
+
+export type CodexChatReasoningOutputFormat =
+  | "auto"
+  | "reasoning_content"
+  | "reasoning"
+  | "reasoning_details"
+  | "think_tags";
+
+export interface CodexChatReasoning {
+  supportsThinking?: boolean;
+  supportsEffort?: boolean;
+  thinkingParam?: CodexChatThinkingParam;
+  effortParam?: CodexChatEffortParam;
+  effortValueMode?: CodexChatEffortValueMode;
+  outputFormat?: CodexChatReasoningOutputFormat;
+}
+
 // 供应商元数据（字段名与后端一致，保持 snake_case）
 export interface ProviderMeta {
   // 自定义端点：以 URL 为键，值为端点信息
@@ -181,6 +218,8 @@ export interface ProviderMeta {
   promptCacheKey?: string;
   // Codex OAuth FAST mode: injects service_tier="priority" on ChatGPT Codex requests
   codexFastMode?: boolean;
+  // Codex Responses -> Chat Completions reasoning capability metadata
+  codexChatReasoning?: CodexChatReasoning;
   // 供应商类型（用于识别 Copilot 等特殊供应商）
   providerType?: string;
   // GitHub Copilot 关联账号 ID（旧字段，保留兼容读取）
@@ -203,6 +242,14 @@ export type ClaudeApiFormat =
   | "openai_chat"
   | "openai_responses"
   | "gemini_native";
+
+export type CodexApiFormat = "openai_responses" | "openai_chat";
+
+export interface CodexCatalogModel {
+  model: string;
+  displayName?: string;
+  contextWindow?: string | number;
+}
 
 // Claude 认证字段类型
 export type ClaudeApiKeyField = "ANTHROPIC_AUTH_TOKEN" | "ANTHROPIC_API_KEY";
