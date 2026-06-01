@@ -180,18 +180,21 @@ jobs:
 
       - name: Import Apple signing certificate
         if: runner.os == 'macOS' && steps.macos-signing.outputs.enabled == 'true'
+        id: apple-cert
         shell: bash
         run: |
           set -euo pipefail
 
           CERT_PATH="$RUNNER_TEMP/certificate.p12"
           if ! printf '%s' "${{ secrets.APPLE_CERTIFICATE }}" | (base64 --decode 2>/dev/null || base64 -D) > "$CERT_PATH"; then
-            echo "❌ APPLE_CERTIFICATE 解码失败，请确认其为正确的 base64 .p12 内容" >&2
-            exit 1
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ APPLE_CERTIFICATE 解码失败，降级为 unsigned macOS build"
+            exit 0
           fi
           if [ ! -s "$CERT_PATH" ]; then
-            echo "❌ APPLE_CERTIFICATE 解码后文件为空" >&2
-            exit 1
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ APPLE_CERTIFICATE 解码后为空，降级为 unsigned macOS build"
+            exit 0
           fi
 
           ORIGINAL_DEFAULT_KEYCHAIN=$(security default-keychain -d user | tr -d '"' | xargs)
@@ -203,27 +206,33 @@ jobs:
           security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" "$KEYCHAIN_PATH"
 
-          security import "$CERT_PATH" \
+          if ! security import "$CERT_PATH" \
             -k "$KEYCHAIN_PATH" \
             -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" \
             -T /usr/bin/codesign \
-            -T /usr/bin/security
+            -T /usr/bin/security; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ Apple signing certificate 导入失败，降级为 unsigned macOS build"
+            exit 0
+          fi
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" "$KEYCHAIN_PATH"
 
           IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
             | grep "Developer ID Application" | grep -oE '"[^"]+"' | head -1 | tr -d '"')
           if [ -z "$IDENTITY" ]; then
-            echo "❌ No 'Developer ID Application' identity found — listing all identities:" >&2
-            security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-            exit 1
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ 未找到 Developer ID Application identity，降级为 unsigned macOS build"
+            security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
+            exit 0
           fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
           echo "✅ Signing identity: $IDENTITY"
           echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
 
           rm -f "$CERT_PATH"
 
       - name: Build Tauri App (macOS signed)
-        if: runner.os == 'macOS' && steps.macos-signing.outputs.enabled == 'true'
+        if: runner.os == 'macOS' && steps.macos-signing.outputs.enabled == 'true' && steps.apple-cert.outputs.enabled == 'true'
         shell: bash
         timeout-minutes: 60
         env:
@@ -252,7 +261,7 @@ jobs:
           done
 
       - name: Build Tauri App (macOS unsigned fallback)
-        if: runner.os == 'macOS' && steps.macos-signing.outputs.enabled != 'true'
+        if: runner.os == 'macOS' && (steps.macos-signing.outputs.enabled != 'true' || steps.apple-cert.outputs.enabled != 'true')
         shell: bash
         timeout-minutes: 60
         run: |
