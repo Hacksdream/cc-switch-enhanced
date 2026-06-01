@@ -331,6 +331,8 @@ export interface Settings {
   streamCheckConfirmed?: boolean;
   // Whether to show the failover toggle independently on the main page
   enableFailoverToggle?: boolean;
+  // Preserve Codex ChatGPT login in auth.json when switching third-party providers
+  preserveCodexOfficialAuthOnSwitch?: boolean;
   // User has confirmed the failover toggle first-run notice
   failoverConfirmed?: boolean;
   // User has confirmed the first-run welcome notice
@@ -340,7 +342,7 @@ export interface Settings {
   // User has confirmed the common config first-run notice
   commonConfigConfirmed?: boolean;
   // 首选语言（可选，默认中文）
-  language?: "en" | "zh" | "ja";
+  language?: "en" | "zh" | "zh-TW" | "ja";
 
   // 主页面显示的应用（默认全部显示）
   visibleApps?: VisibleApps;
