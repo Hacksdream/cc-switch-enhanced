@@ -8,6 +8,8 @@ use jsonc_parser::ParseOptions;
 use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 
+pub const OPENCODE_GO_PROVIDER_ID: &str = "opencode-go";
+
 const STANDARD_OMO_PLUGIN_PREFIXES: [&str; 2] = ["oh-my-openagent", "oh-my-opencode"];
 const SLIM_OMO_PLUGIN_PREFIXES: [&str; 1] = ["oh-my-opencode-slim"];
 
@@ -59,6 +61,37 @@ pub fn get_opencode_config_path() -> PathBuf {
 #[allow(dead_code)]
 pub fn get_opencode_env_path() -> PathBuf {
     get_opencode_dir().join(".env")
+}
+
+pub fn get_opencode_auth_path() -> PathBuf {
+    crate::config::get_home_dir()
+        .join(".local")
+        .join("share")
+        .join("opencode")
+        .join("auth.json")
+}
+
+pub fn has_opencode_go_auth() -> Result<bool, AppError> {
+    let path = get_opencode_auth_path();
+    if !path.exists() {
+        return Ok(false);
+    }
+
+    let content = std::fs::read_to_string(&path).map_err(|e| AppError::io(&path, e))?;
+    let auth: Value = serde_json::from_str(&content).map_err(|e| {
+        AppError::Config(format!(
+            "Failed to parse OpenCode auth: {}: {e}",
+            path.display()
+        ))
+    })?;
+
+    Ok(auth
+        .get(OPENCODE_GO_PROVIDER_ID)
+        .and_then(|value| value.as_object())
+        .and_then(|entry| entry.get("key"))
+        .and_then(|value| value.as_str())
+        .map(|key| !key.trim().is_empty())
+        .unwrap_or(false))
 }
 
 // ---------------------------------------------------------------------------

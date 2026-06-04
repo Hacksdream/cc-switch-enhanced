@@ -793,9 +793,19 @@ pub fn import_opencode_providers_from_live(state: State<'_, AppState>) -> Result
 
 #[tauri::command]
 pub fn get_opencode_live_provider_ids() -> Result<Vec<String>, String> {
-    crate::opencode_config::get_providers()
+    let mut provider_ids: Vec<String> = crate::opencode_config::get_providers()
         .map(|providers| providers.keys().cloned().collect())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    if crate::opencode_config::has_opencode_go_auth().map_err(|e| e.to_string())?
+        && !provider_ids
+            .iter()
+            .any(|id| id == crate::opencode_config::OPENCODE_GO_PROVIDER_ID)
+    {
+        provider_ids.push(crate::opencode_config::OPENCODE_GO_PROVIDER_ID.to_string());
+    }
+
+    Ok(provider_ids)
 }
 
 // ============================================================================

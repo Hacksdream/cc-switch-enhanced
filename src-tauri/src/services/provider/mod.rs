@@ -235,6 +235,20 @@ mod tests {
         }
     }
 
+    fn write_opencode_go_auth(home: &Path) {
+        let auth_path = home
+            .join(".local")
+            .join("share")
+            .join("opencode")
+            .join("auth.json");
+        fs::create_dir_all(auth_path.parent().expect("auth parent")).expect("create auth dir");
+        fs::write(
+            auth_path,
+            r#"{"opencode-go":{"type":"api","key":"test-opencode-go-key"}}"#,
+        )
+        .expect("write opencode auth");
+    }
+
     fn opencode_omo_provider(id: &str, category: &str) -> Provider {
         let mut settings = serde_json::Map::new();
         settings.insert(
@@ -833,6 +847,61 @@ base_url = "http://localhost:8080"
 
     #[test]
     #[serial]
+    fn list_opencode_includes_official_opencode_go_when_auth_exists() {
+        with_test_home(|state, home| {
+            write_opencode_go_auth(home);
+
+            let providers =
+                ProviderService::list(state, AppType::OpenCode).expect("list opencode providers");
+            let provider = providers
+                .get(crate::opencode_config::OPENCODE_GO_PROVIDER_ID)
+                .expect("opencode-go provider should be visible");
+
+            assert_eq!(provider.category.as_deref(), Some("official"));
+            assert_eq!(provider.name, "OpenCode Go");
+            assert_eq!(
+                provider
+                    .meta
+                    .as_ref()
+                    .and_then(|meta| meta.live_config_managed),
+                Some(true)
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn import_opencode_providers_from_live_imports_opencode_go_auth() {
+        with_test_home(|state, home| {
+            write_opencode_go_auth(home);
+
+            let imported = import_opencode_providers_from_live(state)
+                .expect("import opencode-go official provider");
+            assert_eq!(imported, 1);
+
+            let saved = state
+                .db
+                .get_provider_by_id(
+                    crate::opencode_config::OPENCODE_GO_PROVIDER_ID,
+                    AppType::OpenCode.as_str(),
+                )
+                .expect("query opencode-go provider")
+                .expect("opencode-go provider should be imported");
+
+            assert_eq!(saved.category.as_deref(), Some("official"));
+            assert_eq!(saved.name, "OpenCode Go");
+            assert_eq!(
+                saved
+                    .meta
+                    .as_ref()
+                    .and_then(|meta| meta.live_config_managed),
+                Some(true)
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
     fn import_opencode_providers_from_live_marks_provider_as_live_managed() {
         with_test_home(|state, _| {
             let provider = opencode_provider("imported-opencode");
@@ -1153,12 +1222,44 @@ impl ProviderService {
             .live_config_managed = Some(managed);
     }
 
+    pub(crate) fn opencode_go_provider() -> Provider {
+        let mut provider = Provider::with_id(
+            crate::opencode_config::OPENCODE_GO_PROVIDER_ID.to_string(),
+            "OpenCode Go".to_string(),
+            serde_json::json!({
+                "name": "OpenCode Go",
+                "options": {},
+                "models": {}
+            }),
+            Some("https://opencode.ai".to_string()),
+        );
+        provider.category = Some("official".to_string());
+        provider.icon = Some("opencode".to_string());
+        provider.icon_color = Some("#22C55E".to_string());
+        provider
+            .meta
+            .get_or_insert_with(Default::default)
+            .live_config_managed = Some(true);
+        provider
+            .meta
+            .get_or_insert_with(Default::default)
+            .provider_type = Some("opencode_go".to_string());
+        provider
+    }
+
     /// List all providers for an app type
     pub fn list(
         state: &AppState,
         app_type: AppType,
     ) -> Result<IndexMap<String, Provider>, AppError> {
-        state.db.get_all_providers(app_type.as_str())
+        let mut providers = state.db.get_all_providers(app_type.as_str())?;
+        if matches!(app_type, AppType::OpenCode) && crate::opencode_config::has_opencode_go_auth()?
+        {
+            providers
+                .entry(crate::opencode_config::OPENCODE_GO_PROVIDER_ID.to_string())
+                .or_insert_with(Self::opencode_go_provider);
+        }
+        Ok(providers)
     }
 
     /// Get current provider ID
