@@ -2092,6 +2092,7 @@ function ProviderFormFull({
               onExtraOptionsChange={
                 opencodeForm.handleOpencodeExtraOptionsChange
               }
+              providerId={providerId}
             />
           )}
 

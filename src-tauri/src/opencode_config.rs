@@ -9,6 +9,7 @@ use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 
 pub const OPENCODE_GO_PROVIDER_ID: &str = "opencode-go";
+pub const OPENCODE_GO_BASE_URL: &str = "https://opencode.ai/zen/go/v1";
 
 const STANDARD_OMO_PLUGIN_PREFIXES: [&str; 2] = ["oh-my-openagent", "oh-my-opencode"];
 const SLIM_OMO_PLUGIN_PREFIXES: [&str; 1] = ["oh-my-opencode-slim"];
@@ -71,10 +72,10 @@ pub fn get_opencode_auth_path() -> PathBuf {
         .join("auth.json")
 }
 
-pub fn has_opencode_go_auth() -> Result<bool, AppError> {
+pub fn get_opencode_go_auth_key() -> Result<Option<String>, AppError> {
     let path = get_opencode_auth_path();
     if !path.exists() {
-        return Ok(false);
+        return Ok(None);
     }
 
     let content = std::fs::read_to_string(&path).map_err(|e| AppError::io(&path, e))?;
@@ -90,8 +91,13 @@ pub fn has_opencode_go_auth() -> Result<bool, AppError> {
         .and_then(|value| value.as_object())
         .and_then(|entry| entry.get("key"))
         .and_then(|value| value.as_str())
-        .map(|key| !key.trim().is_empty())
-        .unwrap_or(false))
+        .map(str::trim)
+        .filter(|key| !key.is_empty())
+        .map(ToString::to_string))
+}
+
+pub fn has_opencode_go_auth() -> Result<bool, AppError> {
+    get_opencode_go_auth_key().map(|key| key.is_some())
 }
 
 // ---------------------------------------------------------------------------

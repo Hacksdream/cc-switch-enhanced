@@ -27,6 +27,10 @@ export async function fetchModelsForConfig(
   });
 }
 
+export async function fetchOpencodeGoModels(): Promise<FetchedModel[]> {
+  return invoke("fetch_opencode_go_models");
+}
+
 /**
  * 获取 Codex OAuth (ChatGPT Plus/Pro 反代) 可用模型列表
  *
