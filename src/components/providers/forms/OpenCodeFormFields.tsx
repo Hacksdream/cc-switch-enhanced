@@ -15,6 +15,7 @@ import { Download, Plus, Trash2, ChevronRight, Loader2 } from "lucide-react";
 import { ApiKeySection, ModelDropdown } from "./shared";
 import {
   fetchModelsForConfig,
+  fetchOpencodeGoModels,
   showFetchModelsError,
   type FetchedModel,
 } from "@/lib/api/model-fetch";
@@ -167,6 +168,8 @@ interface OpenCodeFormFieldsProps {
   // Extra Options
   extraOptions: Record<string, string>;
   onExtraOptionsChange: (options: Record<string, string>) => void;
+
+  providerId?: string;
 }
 
 export function OpenCodeFormFields({
@@ -185,13 +188,43 @@ export function OpenCodeFormFields({
   onModelsChange,
   extraOptions,
   onExtraOptionsChange,
+  providerId,
 }: OpenCodeFormFieldsProps) {
   const { t } = useTranslation();
 
   const [fetchedModels, setFetchedModels] = useState<FetchedModel[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
+  const isOpencodeGo = providerId === "opencode-go";
 
   const handleFetchModels = useCallback(() => {
+    if (isOpencodeGo) {
+      setIsFetchingModels(true);
+      fetchOpencodeGoModels()
+        .then((models) => {
+          setFetchedModels(models);
+          if (isOpencodeGo && models.length > 0) {
+            onModelsChange(
+              Object.fromEntries(
+                models.map((model) => [model.id, { name: model.id }]),
+              ),
+            );
+          }
+          if (models.length === 0) {
+            toast.info(t("providerForm.fetchModelsEmpty"));
+          } else {
+            toast.success(
+              t("providerForm.fetchModelsSuccess", { count: models.length }),
+            );
+          }
+        })
+        .catch((err) => {
+          console.warn("[ModelFetch] Failed:", err);
+          toast.error(String(err));
+        })
+        .finally(() => setIsFetchingModels(false));
+      return;
+    }
+
     if (!baseUrl || !apiKey) {
       showFetchModelsError(null, t, {
         hasApiKey: !!apiKey,
@@ -216,7 +249,7 @@ export function OpenCodeFormFields({
         showFetchModelsError(err, t);
       })
       .finally(() => setIsFetchingModels(false));
-  }, [baseUrl, apiKey, t]);
+  }, [baseUrl, apiKey, isOpencodeGo, onModelsChange, t]);
 
   // Track which models have expanded options panel
   const [expandedModels, setExpandedModels] = useState<Set<string>>(new Set());

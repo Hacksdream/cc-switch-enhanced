@@ -235,6 +235,20 @@ mod tests {
         }
     }
 
+    fn write_opencode_go_auth(home: &Path) {
+        let auth_path = home
+            .join(".local")
+            .join("share")
+            .join("opencode")
+            .join("auth.json");
+        fs::create_dir_all(auth_path.parent().expect("auth parent")).expect("create auth dir");
+        fs::write(
+            auth_path,
+            r#"{"opencode-go":{"type":"api","key":"test-opencode-go-key"}}"#,
+        )
+        .expect("write opencode auth");
+    }
+
     fn opencode_omo_provider(id: &str, category: &str) -> Provider {
         let mut settings = serde_json::Map::new();
         settings.insert(
@@ -833,6 +847,153 @@ base_url = "http://localhost:8080"
 
     #[test]
     #[serial]
+    fn list_opencode_includes_official_opencode_go_when_auth_exists() {
+        with_test_home(|state, home| {
+            write_opencode_go_auth(home);
+
+            let providers =
+                ProviderService::list(state, AppType::OpenCode).expect("list opencode providers");
+            let provider = providers
+                .get(crate::opencode_config::OPENCODE_GO_PROVIDER_ID)
+                .expect("opencode-go provider should be visible");
+
+            assert_eq!(provider.category.as_deref(), Some("official"));
+            assert_eq!(provider.name, "OpenCode Go");
+            assert_eq!(
+                provider.settings_config.pointer("/options/baseURL"),
+                Some(&json!(crate::opencode_config::OPENCODE_GO_BASE_URL))
+            );
+            assert_eq!(
+                provider.settings_config.get("npm"),
+                Some(&json!("@ai-sdk/openai-compatible"))
+            );
+            assert_eq!(
+                provider
+                    .meta
+                    .as_ref()
+                    .and_then(|meta| meta.live_config_managed),
+                Some(true)
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn list_opencode_preserves_saved_opencode_go_models() {
+        with_test_home(|state, home| {
+            write_opencode_go_auth(home);
+            let mut provider = ProviderService::opencode_go_provider();
+            provider.settings_config["models"] = json!({
+                "kimi-k2.6": { "name": "Kimi K2.6" }
+            });
+            provider
+                .meta
+                .get_or_insert_with(Default::default)
+                .live_config_managed = Some(false);
+            state
+                .db
+                .save_provider(AppType::OpenCode.as_str(), &provider)
+                .expect("save opencode-go with models");
+
+            let providers =
+                ProviderService::list(state, AppType::OpenCode).expect("list opencode providers");
+            let listed = providers
+                .get(crate::opencode_config::OPENCODE_GO_PROVIDER_ID)
+                .expect("opencode-go provider should be visible");
+
+            assert_eq!(
+                listed.settings_config.pointer("/models/kimi-k2.6/name"),
+                Some(&json!("Kimi K2.6"))
+            );
+            assert_eq!(
+                listed
+                    .meta
+                    .as_ref()
+                    .and_then(|meta| meta.live_config_managed),
+                Some(false)
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn update_opencode_go_saves_models_without_writing_live_config() {
+        with_test_home(|state, home| {
+            write_opencode_go_auth(home);
+            let mut provider = ProviderService::opencode_go_provider();
+            provider.settings_config["models"] = json!({
+                "deepseek-v4-flash": { "name": "DeepSeek V4 Flash" }
+            });
+
+            ProviderService::update(
+                state,
+                AppType::OpenCode,
+                Some(crate::opencode_config::OPENCODE_GO_PROVIDER_ID),
+                provider,
+            )
+            .expect("update opencode-go official provider");
+
+            let saved = state
+                .db
+                .get_provider_by_id(
+                    crate::opencode_config::OPENCODE_GO_PROVIDER_ID,
+                    AppType::OpenCode.as_str(),
+                )
+                .expect("query saved opencode-go")
+                .expect("opencode-go should be saved in DB");
+            assert_eq!(
+                saved.settings_config.pointer("/models/deepseek-v4-flash/name"),
+                Some(&json!("DeepSeek V4 Flash"))
+            );
+            assert_eq!(
+                saved
+                    .meta
+                    .as_ref()
+                    .and_then(|meta| meta.live_config_managed),
+                Some(false)
+            );
+            assert!(
+                !crate::opencode_config::get_providers()
+                    .expect("read opencode providers")
+                    .contains_key(crate::opencode_config::OPENCODE_GO_PROVIDER_ID),
+                "official opencode-go auth provider should not be written into opencode.json"
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn import_opencode_providers_from_live_imports_opencode_go_auth() {
+        with_test_home(|state, home| {
+            write_opencode_go_auth(home);
+
+            let imported = import_opencode_providers_from_live(state)
+                .expect("import opencode-go official provider");
+            assert_eq!(imported, 1);
+
+            let saved = state
+                .db
+                .get_provider_by_id(
+                    crate::opencode_config::OPENCODE_GO_PROVIDER_ID,
+                    AppType::OpenCode.as_str(),
+                )
+                .expect("query opencode-go provider")
+                .expect("opencode-go provider should be imported");
+
+            assert_eq!(saved.category.as_deref(), Some("official"));
+            assert_eq!(saved.name, "OpenCode Go");
+            assert_eq!(
+                saved
+                    .meta
+                    .as_ref()
+                    .and_then(|meta| meta.live_config_managed),
+                Some(true)
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
     fn import_opencode_providers_from_live_marks_provider_as_live_managed() {
         with_test_home(|state, _| {
             let provider = opencode_provider("imported-opencode");
@@ -1153,12 +1314,69 @@ impl ProviderService {
             .live_config_managed = Some(managed);
     }
 
+    pub(crate) fn opencode_go_provider() -> Provider {
+        let mut provider = Provider::with_id(
+            crate::opencode_config::OPENCODE_GO_PROVIDER_ID.to_string(),
+            "OpenCode Go".to_string(),
+            serde_json::json!({
+                "npm": "@ai-sdk/openai-compatible",
+                "name": "OpenCode Go",
+                "options": {
+                    "baseURL": crate::opencode_config::OPENCODE_GO_BASE_URL,
+                    "setCacheKey": true
+                },
+                "models": {}
+            }),
+            Some("https://opencode.ai".to_string()),
+        );
+        provider.category = Some("official".to_string());
+        provider.icon = Some("opencode".to_string());
+        provider.icon_color = Some("#22C55E".to_string());
+        provider
+            .meta
+            .get_or_insert_with(Default::default)
+            .live_config_managed = Some(true);
+        provider
+            .meta
+            .get_or_insert_with(Default::default)
+            .provider_type = Some("opencode_go".to_string());
+        provider
+    }
+
+    pub(crate) fn opencode_go_provider_with_saved_state(existing: Option<&Provider>) -> Provider {
+        let mut provider = Self::opencode_go_provider();
+        if let Some(existing) = existing {
+            if let Some(models) = existing.settings_config.get("models").cloned() {
+                if let Some(settings) = provider.settings_config.as_object_mut() {
+                    settings.insert("models".to_string(), models);
+                }
+            }
+            if let Some(managed) = Self::provider_live_config_managed(existing) {
+                Self::set_provider_live_config_managed(&mut provider, managed);
+            }
+            provider.created_at = existing.created_at;
+            provider.sort_index = existing.sort_index;
+            provider.notes = existing.notes.clone();
+            provider.in_failover_queue = existing.in_failover_queue;
+        }
+        provider
+    }
+
     /// List all providers for an app type
     pub fn list(
         state: &AppState,
         app_type: AppType,
     ) -> Result<IndexMap<String, Provider>, AppError> {
-        state.db.get_all_providers(app_type.as_str())
+        let mut providers = state.db.get_all_providers(app_type.as_str())?;
+        if matches!(app_type, AppType::OpenCode) && crate::opencode_config::has_opencode_go_auth()?
+        {
+            let existing = providers.get(crate::opencode_config::OPENCODE_GO_PROVIDER_ID);
+            providers.insert(
+                crate::opencode_config::OPENCODE_GO_PROVIDER_ID.to_string(),
+                Self::opencode_go_provider_with_saved_state(existing),
+            );
+        }
+        Ok(providers)
     }
 
     /// Get current provider ID
@@ -1318,6 +1536,14 @@ impl ProviderService {
         // Additive mode apps (OpenCode, OpenClaw): only sync to live when the provider
         // already exists in live config. Editing a DB-only provider must not auto-add it.
         if app_type.is_additive_mode() {
+            if matches!(app_type, AppType::OpenCode)
+                && provider.id == crate::opencode_config::OPENCODE_GO_PROVIDER_ID
+            {
+                Self::set_provider_live_config_managed(&mut provider, false);
+                state.db.save_provider(app_type.as_str(), &provider)?;
+                return Ok(true);
+            }
+
             let omo_variant = if matches!(app_type, AppType::OpenCode) {
                 match provider.category.as_deref() {
                     Some("omo") => Some(&crate::services::omo::STANDARD),

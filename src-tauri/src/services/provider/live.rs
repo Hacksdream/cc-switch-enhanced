@@ -38,8 +38,15 @@ pub(crate) fn provider_exists_in_live_config(
     provider_id: &str,
 ) -> Result<bool, AppError> {
     match app_type {
-        AppType::OpenCode => crate::opencode_config::get_providers()
-            .map(|providers| providers.contains_key(provider_id)),
+        AppType::OpenCode => {
+            if provider_id == crate::opencode_config::OPENCODE_GO_PROVIDER_ID
+                && crate::opencode_config::has_opencode_go_auth()?
+            {
+                return Ok(true);
+            }
+            crate::opencode_config::get_providers()
+                .map(|providers| providers.contains_key(provider_id))
+        }
         AppType::OpenClaw => crate::openclaw_config::get_providers()
             .map(|providers| providers.contains_key(provider_id)),
         AppType::Hermes => crate::hermes_config::get_providers()
@@ -1362,12 +1369,29 @@ pub fn import_opencode_providers_from_live(state: &AppState) -> Result<usize, Ap
     use crate::opencode_config;
 
     let providers = opencode_config::get_typed_providers()?;
-    if providers.is_empty() {
+    let has_opencode_go_auth = opencode_config::has_opencode_go_auth()?;
+    if providers.is_empty() && !has_opencode_go_auth {
         return Ok(0);
     }
 
     let mut imported = 0;
     let existing_ids = state.db.get_provider_ids("opencode")?;
+
+    if has_opencode_go_auth {
+        let existing_provider = state.db.get_provider_by_id(
+            opencode_config::OPENCODE_GO_PROVIDER_ID,
+            AppType::OpenCode.as_str(),
+        )?;
+        let provider = super::ProviderService::opencode_go_provider_with_saved_state(
+            existing_provider.as_ref(),
+        );
+        if let Err(e) = state.db.save_provider("opencode", &provider) {
+            log::warn!("Failed to import OpenCode Go official provider: {e}");
+        } else if !existing_ids.contains(&opencode_config::OPENCODE_GO_PROVIDER_ID.to_string()) {
+            imported += 1;
+            log::info!("Imported OpenCode Go official provider from auth.json");
+        }
+    }
 
     for (id, config) in providers {
         // Skip if already exists in database
