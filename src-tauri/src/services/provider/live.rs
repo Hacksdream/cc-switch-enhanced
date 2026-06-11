@@ -1387,7 +1387,7 @@ pub fn import_opencode_providers_from_live(state: &AppState) -> Result<usize, Ap
         );
         if let Err(e) = state.db.save_provider("opencode", &provider) {
             log::warn!("Failed to import OpenCode Go official provider: {e}");
-        } else if !existing_ids.contains(&opencode_config::OPENCODE_GO_PROVIDER_ID.to_string()) {
+        } else if !existing_ids.contains(opencode_config::OPENCODE_GO_PROVIDER_ID) {
             imported += 1;
             log::info!("Imported OpenCode Go official provider from auth.json");
         }

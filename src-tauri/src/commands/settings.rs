@@ -112,8 +112,8 @@ pub async fn set_auto_launch(enabled: bool) -> Result<bool, String> {
 mod tests {
     use super::merge_settings_for_save;
     use crate::settings::{
-        AppSettings, CodexThirdPartyHistoryProviderBucketMigration, LocalMigrations, S3SyncSettings,
-        WebDavSyncSettings,
+        AppSettings, CodexThirdPartyHistoryProviderBucketMigration, LocalMigrations,
+        S3SyncSettings, WebDavSyncSettings,
     };
 
     #[test]

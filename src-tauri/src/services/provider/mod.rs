@@ -942,7 +942,9 @@ base_url = "http://localhost:8080"
                 .expect("query saved opencode-go")
                 .expect("opencode-go should be saved in DB");
             assert_eq!(
-                saved.settings_config.pointer("/models/deepseek-v4-flash/name"),
+                saved
+                    .settings_config
+                    .pointer("/models/deepseek-v4-flash/name"),
                 Some(&json!("DeepSeek V4 Flash"))
             );
             assert_eq!(
