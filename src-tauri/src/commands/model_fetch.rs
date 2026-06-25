@@ -40,7 +40,9 @@ pub fn fetch_opencode_go_models() -> Result<Vec<FetchedModel>, String> {
         return Err("OpenCode Go auth is missing".to_string());
     }
 
-    let output = Command::new("opencode")
+    let opencode = crate::claude_mcp::resolve_command_path("opencode")
+        .ok_or_else(|| "opencode command not found".to_string())?;
+    let output = Command::new(opencode)
         .args(["models", crate::opencode_config::OPENCODE_GO_PROVIDER_ID])
         .output()
         .map_err(|e| format!("Failed to run opencode models: {e}"))?;

@@ -13,7 +13,7 @@ import {
   type CSSProperties,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, X, RefreshCw } from "lucide-react";
+import { AlertTriangle, Search, X, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -47,6 +47,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { settingsApi } from "@/lib/api/settings";
+import { isTextEditableTarget } from "@/utils/domUtils";
 
 interface ProviderListProps {
   providers: Record<string, Provider>;
@@ -195,6 +196,12 @@ export function ProviderList({
   const [showStreamCheckConfirm, setShowStreamCheckConfirm] = useState(false);
   const [pendingTestProvider, setPendingTestProvider] =
     useState<Provider | null>(null);
+  const { data: claudeDesktopStatus } = useQuery({
+    queryKey: ["claudeDesktopStatus"],
+    queryFn: () => providersApi.getClaudeDesktopStatus(),
+    enabled: appId === "claude-desktop",
+    refetchInterval: appId === "claude-desktop" ? 5000 : false,
+  });
 
   // Query settings for streamCheckConfirmed flag
   const { data: settings } = useQuery({
@@ -256,6 +263,9 @@ export function ProviderList({
     onSuccess: (imported) => {
       if (imported) {
         queryClient.invalidateQueries({ queryKey: ["providers", appId] });
+        if (appId === "claude-desktop") {
+          queryClient.invalidateQueries({ queryKey: ["claudeDesktopStatus"] });
+        }
         toast.success(t("provider.importCurrentDescription"));
       } else {
         toast.info(t("provider.noProviders"));
@@ -268,8 +278,12 @@ export function ProviderList({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+
       const key = event.key.toLowerCase();
       if ((event.metaKey || event.ctrlKey) && key === "f") {
+        // 正在输入框/可编辑区域中时不抢占 Ctrl+F，避免与表单内搜索冲突。
+        if (isTextEditableTarget(document.activeElement)) return;
         event.preventDefault();
         setIsSearchOpen(true);
         return;
@@ -280,8 +294,8 @@ export function ProviderList({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -304,6 +318,63 @@ export function ProviderList({
       );
     });
   }, [searchTerm, sortedProviders]);
+
+  const claudeDesktopStatusMessages = useMemo(() => {
+    if (appId !== "claude-desktop" || !claudeDesktopStatus) return [];
+
+    const messages: string[] = [];
+    if (!claudeDesktopStatus.supported) {
+      messages.push(
+        t("claudeDesktop.statusUnsupported", {
+          defaultValue: "当前平台暂不支持 Claude Desktop 3P 配置写入。",
+        }),
+      );
+      return messages;
+    }
+
+    if (claudeDesktopStatus.staleRawModels) {
+      messages.push(
+        t("claudeDesktop.statusStaleRawModels", {
+          defaultValue:
+            "Claude Desktop profile 中存在非 claude-* 模型名，新版 Claude Desktop 可能拒绝加载；重新切换当前供应商可修复。",
+        }),
+      );
+    }
+    if (claudeDesktopStatus.missingRouteMappings) {
+      messages.push(
+        t("claudeDesktop.statusMissingRouteMappings", {
+          defaultValue:
+            "当前供应商启用了模型映射，但没有有效路由；请编辑供应商并补全至少一个模型映射。",
+        }),
+      );
+    }
+    if (
+      claudeDesktopStatus.mode === "proxy" &&
+      !claudeDesktopStatus.gatewayTokenConfigured
+    ) {
+      messages.push(
+        t("claudeDesktop.statusGatewayTokenMissing", {
+          defaultValue:
+            "当前本地路由 token 尚未生成；重新切换该供应商会写入新的本地 token。",
+        }),
+      );
+    }
+
+    const expected = claudeDesktopStatus.expectedBaseUrl?.replace(/\/+$/, "");
+    const actual = claudeDesktopStatus.actualBaseUrl?.replace(/\/+$/, "");
+    if (expected && actual && expected !== actual) {
+      messages.push(
+        t("claudeDesktop.statusBaseUrlMismatch", {
+          expected,
+          actual,
+          defaultValue:
+            "Claude Desktop profile 指向的地址与当前供应商不一致；当前为 {{actual}}，应为 {{expected}}。重新切换当前供应商可修复。",
+        }),
+      );
+    }
+
+    return messages;
+  }, [appId, claudeDesktopStatus, t]);
 
   if (isLoading) {
     return (
@@ -404,6 +475,21 @@ export function ProviderList({
 
   return (
     <div className="mt-4 space-y-4">
+      {claudeDesktopStatusMessages.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+          <div className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {t("claudeDesktop.statusTitle", {
+              defaultValue: "Claude Desktop 配置需要检查",
+            })}
+          </div>
+          <ul className="mt-2 space-y-1 text-xs leading-relaxed">
+            {claudeDesktopStatusMessages.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div
