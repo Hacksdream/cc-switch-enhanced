@@ -21,6 +21,7 @@ vitest-report.json
 nul
 
 # Local agent/session artifacts
+.ccg/
 .serena/
 thoughts/ledgers/CONTINUITY_ses_*.md
 
